@@ -311,6 +311,57 @@ async def slash_lol(
         print(f"スラッシュコマンドエラー: {e}")
 
 # =============================================
+# /spam コマンド（そのチャンネルだけに送信）
+# =============================================
+@bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
+async def slash_spam(
+    interaction: discord.Interaction,
+    message: str = None,
+    count: int = 50
+):
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        channel = interaction.channel
+        if channel is None:
+            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+            return
+
+        zalgo_marks = [
+            '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
+            '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
+            '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
+            '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
+            '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
+            '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
+            '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
+            '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
+        ]
+
+        if message:
+            spam_text = f"@everyone {message}"
+        else:
+            base_text = "w" * 50 + "\n" + "a" * 100
+            zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
+            spam_text = f"@everyone {zalgo_text}"
+
+        spam_tasks = [channel.send(spam_text) for _ in range(count)]
+        results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+
+        await interaction.followup.send(
+            f"✅ このチャンネルに{success_count}回送信しました",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ エラー: {str(e)}", ephemeral=True)
+        print(f"spamコマンドエラー: {e}")
+
+# =============================================
 # /dm コマンド（サーバーに入っている場合のみ）
 # =============================================
 @bot.tree.command(name="dm", description="サーバー全員にDM爆撃（ボットがサーバーに参加している場合のみ）")
