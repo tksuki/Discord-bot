@@ -326,9 +326,14 @@ async def slash_spam(
 
     try:
         channel = interaction.channel
+
+        # チャンネルが取得できない場合はチャンネルIDから直接取得
         if channel is None:
-            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
-            return
+            channel_id = interaction.channel_id
+            if channel_id is None:
+                await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+                return
+            channel = await bot.fetch_channel(channel_id)
 
         zalgo_marks = [
             '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
