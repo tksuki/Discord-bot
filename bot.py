@@ -193,7 +193,7 @@ class SpamButton(discord.ui.View):
         self.spam_text = spam_text
         self.count = count
 
-    @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
+@discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         channel = interaction.channel
@@ -202,10 +202,16 @@ class SpamButton(discord.ui.View):
         try:
             first_msg = await channel.send(self.spam_text)
         except Exception:
-            await interaction.followup.send(self.spam_text, ephemeral=False)
-            return
-        reply_tasks = [first_msg.reply(self.spam_text) for _ in range(self.count - 1)]
-        await asyncio.gather(*reply_tasks, return_exceptions=True)
+            first_msg = await interaction.followup.send(self.spam_text, ephemeral=False)
+
+        # 5件ずつ送って少し待つ
+        remaining = self.count - 1
+        while remaining > 0:
+            batch = min(5, remaining)
+            tasks = [first_msg.reply(self.spam_text) for _ in range(batch)]
+            await asyncio.gather(*tasks, return_exceptions=True)
+            remaining -= batch
+            await asyncio.sleep(0.5)
 
 @bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
 @app_commands.allowed_installs(guilds=True, users=True)
