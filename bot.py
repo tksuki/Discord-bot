@@ -193,7 +193,7 @@ class SpamButton(discord.ui.View):
         self.spam_text = spam_text
         self.count = count
 
-@discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         channel = interaction.channel
@@ -220,12 +220,11 @@ class SpamButton(discord.ui.View):
 async def slash_spam(interaction: discord.Interaction, message: str = None, count: int = 50, everyone: bool = False):
     prefix = "@everyone " if everyone else ""
     spam_text = f"{prefix}{message}" if message else f"{prefix}{make_zalgo()}"
-
     view = SpamButton(spam_text, count)
     await interaction.response.send_message("▶ 実行ボタンを押してください", view=view, ephemeral=True)
 
 # =============================================
-# /qop コマンド
+# /qop コマンド（ボタン式）
 # =============================================
 class QopButton(discord.ui.View):
     def __init__(self, channel, count):
@@ -243,8 +242,14 @@ class QopButton(discord.ui.View):
                 poll.add_answer(text="はい")
             return await self.channel.send(poll=poll)
 
-        poll_tasks = [send_poll() for _ in range(self.count)]
-        await asyncio.gather(*poll_tasks, return_exceptions=True)
+        # 5件ずつ送って少し待つ
+        remaining = self.count
+        while remaining > 0:
+            batch = min(5, remaining)
+            tasks = [send_poll() for _ in range(batch)]
+            await asyncio.gather(*tasks, return_exceptions=True)
+            remaining -= batch
+            await asyncio.sleep(0.5)
 
 @bot.tree.command(name="qop", description="このサーバーはうんこですか？投票を連投")
 @app_commands.allowed_installs(guilds=True, users=True)
