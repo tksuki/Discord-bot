@@ -195,18 +195,16 @@ class SpamButton(discord.ui.View):
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # まず最初にinteractionに応答（これをしないと失敗する）
         await interaction.response.defer(ephemeral=True)
-
-        # ボタンのメッセージを削除
+        channel = interaction.channel
+        if channel is None:
+            channel = await bot.fetch_channel(interaction.channel_id)
         try:
-            await interaction.delete_original_response()
+            first_msg = await channel.send(self.spam_text)
         except Exception:
-            pass
-
-        # スパム送信
-        button_msg = interaction.message
-        reply_tasks = [button_msg.reply(self.spam_text) for _ in range(self.count)]
+            await interaction.followup.send(self.spam_text, ephemeral=False)
+            return
+        reply_tasks = [first_msg.reply(self.spam_text) for _ in range(self.count - 1)]
         await asyncio.gather(*reply_tasks, return_exceptions=True)
 
 @bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
@@ -231,14 +229,7 @@ class QopButton(discord.ui.View):
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # まず最初にinteractionに応答
         await interaction.response.defer(ephemeral=True)
-
-        # ボタンのメッセージを削除
-        try:
-            await interaction.delete_original_response()
-        except Exception:
-            pass
 
         async def send_poll():
             poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
