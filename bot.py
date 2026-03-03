@@ -199,16 +199,11 @@ class SpamButton(discord.ui.View):
         channel = interaction.channel
         if channel is None:
             channel = await bot.fetch_channel(interaction.channel_id)
-        try:
-            first_msg = await channel.send(self.spam_text)
-        except Exception:
-            first_msg = await interaction.followup.send(self.spam_text, ephemeral=False)
 
-        # 5件ずつ送って少し待つ
-        remaining = self.count - 1
+        remaining = self.count
         while remaining > 0:
             batch = min(5, remaining)
-            tasks = [first_msg.reply(self.spam_text) for _ in range(batch)]
+            tasks = [channel.send(self.spam_text) for _ in range(batch)]
             await asyncio.gather(*tasks, return_exceptions=True)
             remaining -= batch
             await asyncio.sleep(0.5)
