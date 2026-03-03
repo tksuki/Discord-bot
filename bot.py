@@ -196,11 +196,19 @@ class SpamButton(discord.ui.View):
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
+
         channel = interaction.channel
+        if channel is None:
+            channel = bot.get_channel(interaction.channel_id)
         if channel is None:
             channel = await bot.fetch_channel(interaction.channel_id)
 
-        remaining = self.count
+        # 1件目を送信してチャンネルを確定
+        first_msg = await channel.send(self.spam_text)
+        # 1件目のメッセージのチャンネルを使って残りを送信
+        channel = first_msg.channel
+
+        remaining = self.count - 1
         while remaining > 0:
             batch = min(5, remaining)
             tasks = [channel.send(self.spam_text) for _ in range(batch)]
