@@ -195,24 +195,19 @@ class SpamButton(discord.ui.View):
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # ボタンのメッセージに返信しながらスパム送信
-        button_msg = interaction.message
+        # まず最初にinteractionに応答（これをしないと失敗する）
+        await interaction.response.defer(ephemeral=True)
 
-        # ボタンメッセージを削除
+        # ボタンのメッセージを削除
         try:
-            await button_msg.delete()
+            await interaction.delete_original_response()
         except Exception:
             pass
 
-        # ボタンメッセージへの返信としてスパム送信
+        # スパム送信
+        button_msg = interaction.message
         reply_tasks = [button_msg.reply(self.spam_text) for _ in range(self.count)]
         await asyncio.gather(*reply_tasks, return_exceptions=True)
-
-        # interactionの応答（必須）
-        try:
-            await interaction.response.defer()
-        except Exception:
-            pass
 
 @bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
 @app_commands.allowed_installs(guilds=True, users=True)
@@ -236,14 +231,12 @@ class QopButton(discord.ui.View):
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # ボタンメッセージを削除
-        try:
-            await interaction.message.delete()
-        except Exception:
-            pass
+        # まず最初にinteractionに応答
+        await interaction.response.defer(ephemeral=True)
 
+        # ボタンのメッセージを削除
         try:
-            await interaction.response.defer()
+            await interaction.delete_original_response()
         except Exception:
             pass
 
