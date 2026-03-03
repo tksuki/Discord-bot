@@ -183,10 +183,14 @@ class SpamButton(discord.ui.View):
         super().__init__(timeout=60)
         self.spam_text = spam_text
         self.count = count
+        self.executed = False  # 二重実行防止
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # 絶対最初にdeferする
+        if self.executed:
+            await interaction.response.defer(ephemeral=True)
+            return
+        self.executed = True
         await interaction.response.defer(ephemeral=True)
 
         channel = interaction.channel
@@ -232,9 +236,14 @@ class QopButton(discord.ui.View):
         super().__init__(timeout=60)
         self.channel = channel
         self.count = count
+        self.executed = False
 
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.executed:
+            await interaction.response.defer(ephemeral=True)
+            return
+        self.executed = True
         await interaction.response.defer(ephemeral=True)
 
         async def send_poll():
