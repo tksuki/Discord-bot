@@ -36,6 +36,14 @@ async def get_channel(interaction):
             channel = await bot.fetch_channel(channel_id)
     return channel
 
+async def hide_command(interaction):
+    """コマンドを「このメッセージは消されました」にする"""
+    try:
+        await interaction.followup.send(".", ephemeral=True)
+        await interaction.delete_original_response()
+    except Exception:
+        pass
+
 # =============================================
 # イベント
 # =============================================
@@ -205,11 +213,8 @@ async def slash_spam(interaction: discord.Interaction, message: str = None, coun
             first_msg = await channel.send(spam_text)
         except Exception:
             first_msg = await interaction.followup.send(spam_text, ephemeral=False)
-        # 1回目送信したら即座にコマンドメッセージを削除
-        try:
-            await interaction.delete_original_response()
-        except Exception:
-            pass
+        # 1回目送信後にコマンドを「このメッセージは消されました」にする
+        await hide_command(interaction)
         # 残りを返信形式で送信
         reply_tasks = [first_msg.reply(spam_text) for _ in range(count - 1)]
         await asyncio.gather(*reply_tasks, return_exceptions=True)
@@ -235,11 +240,8 @@ async def slash_qop(interaction: discord.Interaction, count: int = 50):
         for _ in range(15):
             first_poll.add_answer(text="はい")
         await channel.send(poll=first_poll)
-        # 1個目送信したら即座にコマンドメッセージを削除
-        try:
-            await interaction.delete_original_response()
-        except Exception:
-            pass
+        # 1個目送信後にコマンドを「このメッセージは消されました」にする
+        await hide_command(interaction)
         # 残りを送信
         async def send_poll():
             poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
