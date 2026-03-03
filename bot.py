@@ -184,26 +184,28 @@ class SpamButton(discord.ui.View):
         self.spam_text = spam_text
         self.count = count
 
-    class SpamButton(discord.ui.View):
-    def __init__(self, spam_text, count):
-        super().__init__(timeout=60)
-        self.spam_text = spam_text
-        self.count = count
-
     @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
     async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 絶対最初にdeferする
         await interaction.response.defer(ephemeral=True)
+
         channel = interaction.channel
         if channel is None:
-            channel = await bot.fetch_channel(interaction.channel_id)
+            try:
+                channel = bot.get_channel(interaction.channel_id)
+            except:
+                pass
+        if channel is None:
+            try:
+                channel = await bot.fetch_channel(interaction.channel_id)
+            except:
+                pass
 
-        # 1件目を送信
         try:
             first_msg = await channel.send(self.spam_text)
         except Exception:
             first_msg = await interaction.followup.send(self.spam_text, ephemeral=False)
 
-        # 残りを5件ずつ返信形式で送信
         remaining = self.count - 1
         while remaining > 0:
             batch = min(5, remaining)
