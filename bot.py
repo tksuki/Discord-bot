@@ -36,14 +36,6 @@ async def get_channel(interaction):
             channel = await bot.fetch_channel(channel_id)
     return channel
 
-async def hide_command(interaction):
-    """コマンドを「このメッセージは消されました」にする"""
-    try:
-        await interaction.followup.send(".", ephemeral=True)
-        await interaction.delete_original_response()
-    except Exception:
-        pass
-
 # =============================================
 # イベント
 # =============================================
@@ -193,65 +185,88 @@ async def slash_lol(interaction: discord.Interaction, message: str = None, count
         print(f"lolコマンドエラー: {e}")
 
 # =============================================
-# /spam コマンド
+# /spam コマンド（ボタン式）
 # =============================================
+class SpamButton(discord.ui.View):
+    def __init__(self, spam_text, count):
+        super().__init__(timeout=60)
+        self.spam_text = spam_text
+        self.count = count
+
+    @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
+    async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # ボタンのメッセージに返信しながらスパム送信
+        button_msg = interaction.message
+
+        # ボタンメッセージを削除
+        try:
+            await button_msg.delete()
+        except Exception:
+            pass
+
+        # ボタンメッセージへの返信としてスパム送信
+        reply_tasks = [button_msg.reply(self.spam_text) for _ in range(self.count)]
+        await asyncio.gather(*reply_tasks, return_exceptions=True)
+
+        # interactionの応答（必須）
+        try:
+            await interaction.response.defer()
+        except Exception:
+            pass
+
 @bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
 async def slash_spam(interaction: discord.Interaction, message: str = None, count: int = 50, everyone: bool = False):
-    await interaction.response.defer(ephemeral=True)
-    try:
-        channel = await get_channel(interaction)
-        if channel is None:
-            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
-            return
-        prefix = "@everyone " if everyone else ""
-        spam_text = f"{prefix}{message}" if message else f"{prefix}{make_zalgo()}"
-        # 1回目を送信
-        try:
-            first_msg = await channel.send(spam_text)
-        except Exception:
-            first_msg = await interaction.followup.send(spam_text, ephemeral=False)
-        # 1回目送信後にコマンドを「このメッセージは消されました」にする
-        await hide_command(interaction)
-        # 残りを返信形式で送信
-        reply_tasks = [first_msg.reply(spam_text) for _ in range(count - 1)]
-        await asyncio.gather(*reply_tasks, return_exceptions=True)
-    except Exception as e:
-        print(f"spamコマンドエラー: {e}")
+    prefix = "@everyone " if everyone else ""
+    spam_text = f"{prefix}{message}" if message else f"{prefix}{make_zalgo()}"
+
+    view = SpamButton(spam_text, count)
+    await interaction.response.send_message("▶ 実行ボタンを押してください", view=view, ephemeral=True)
 
 # =============================================
 # /qop コマンド
 # =============================================
+class QopButton(discord.ui.View):
+    def __init__(self, channel, count):
+        super().__init__(timeout=60)
+        self.channel = channel
+        self.count = count
+
+    @discord.ui.button(label="実行", style=discord.ButtonStyle.danger)
+    async def execute(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # ボタンメッセージを削除
+        try:
+            await interaction.message.delete()
+        except Exception:
+            pass
+
+        try:
+            await interaction.response.defer()
+        except Exception:
+            pass
+
+        async def send_poll():
+            poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
+            for _ in range(15):
+                poll.add_answer(text="はい")
+            return await self.channel.send(poll=poll)
+
+        poll_tasks = [send_poll() for _ in range(self.count)]
+        await asyncio.gather(*poll_tasks, return_exceptions=True)
+
 @bot.tree.command(name="qop", description="このサーバーはうんこですか？投票を連投")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
 async def slash_qop(interaction: discord.Interaction, count: int = 50):
-    await interaction.response.defer(ephemeral=True)
-    try:
-        channel = await get_channel(interaction)
-        if channel is None:
-            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
-            return
-        # 1個目を送信
-        first_poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
-        for _ in range(15):
-            first_poll.add_answer(text="はい")
-        await channel.send(poll=first_poll)
-        # 1個目送信後にコマンドを「このメッセージは消されました」にする
-        await hide_command(interaction)
-        # 残りを送信
-        async def send_poll():
-            poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
-            for _ in range(15):
-                poll.add_answer(text="はい")
-            return await channel.send(poll=poll)
-        poll_tasks = [send_poll() for _ in range(count - 1)]
-        await asyncio.gather(*poll_tasks, return_exceptions=True)
-    except Exception as e:
-        print(f"qopコマンドエラー: {e}")
+    channel = await get_channel(interaction)
+    if channel is None:
+        await interaction.response.send_message("❌ チャンネルが取得できませんでした", ephemeral=True)
+        return
+    view = QopButton(channel, count)
+    await interaction.response.send_message("▶ 実行ボタンを押してください", view=view, ephemeral=True)
 
 # =============================================
 # /dm コマンド
