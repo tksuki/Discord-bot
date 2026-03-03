@@ -283,12 +283,27 @@ async def slash_spam(
             zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
             spam_text = f"{prefix}{zalgo_text}"
 
-        spam_tasks = [channel.send(spam_text) for _ in range(count)]
-        results = await asyncio.gather(*spam_tasks, return_exceptions=True)
-        success_count = sum(1 for r in results if not isinstance(r, Exception))
-        errors = [str(r) for r in results if isinstance(r, Exception)]
+        # 1回目はfollowup（ephemeral=False）で送信、残りはchannel.send
+        success_count = 0
+        first_error = None
 
-        error_info = f"\nエラー例: {errors[0]}" if errors else ""
+        # まず1回followupで送信
+        try:
+            await interaction.followup.send(spam_text, ephemeral=False)
+            success_count += 1
+        except Exception as e:
+            first_error = str(e)
+
+        # 残りをchannel.sendで送信
+        if channel is not None:
+            spam_tasks = [channel.send(spam_text) for _ in range(count - 1)]
+            results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+            success_count += sum(1 for r in results if not isinstance(r, Exception))
+            if first_error is None:
+                errors = [str(r) for r in results if isinstance(r, Exception)]
+                first_error = errors[0] if errors else None
+
+        error_info = f"\nエラー例: {first_error}" if first_error and success_count == 0 else ""
         await interaction.followup.send(f"✅ このチャンネルに{success_count}回送信しました{error_info}", ephemeral=True)
 
     except Exception as e:
