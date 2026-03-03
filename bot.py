@@ -252,14 +252,15 @@ async def slash_spam(
     count: int = 50,
     everyone: bool = False
 ):
+    # まず即座に応答してinteractionを消す
     await interaction.response.defer(ephemeral=True)
+    await interaction.delete_original_response()
 
     try:
         channel = interaction.channel
         if channel is None:
             channel_id = interaction.channel_id
             if channel_id is None:
-                await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
                 return
             channel = await bot.fetch_channel(channel_id)
 
@@ -283,28 +284,53 @@ async def slash_spam(
             zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
             spam_text = f"{prefix}{zalgo_text}"
 
-        # 1回目はfollowup（ephemeral=False）で送信、残りはchannel.send
-        success_count = 0
-        first_error = None
-
-        # まず1回followupで送信
+        # 1回目を送信してそのメッセージに返信していく
         try:
-            await interaction.followup.send(spam_text, ephemeral=False)
-            success_count += 1
-        except Exception as e:
-            first_error = str(e)
+            first_msg = await channel.send(spam_text)
+        except Exception:
+            # channel.sendが失敗した場合はfollowupで送信
+            first_msg = await interaction.followup.send(spam_text, ephemeral=False)
 
-        # 残りをchannel.sendで送信
-        if channel is not None:
-            spam_tasks = [channel.send(spam_text) for _ in range(count - 1)]
-            results = await asyncio.gather(*spam_tasks, return_exceptions=True)
-            success_count += sum(1 for r in results if not isinstance(r, Exception))
-            if first_error is None:
-                errors = [str(r) for r in results if isinstance(r, Exception)]
-                first_error = errors[0] if errors else None
+        # 残りを返信形式で送信
+        reply_tasks = [first_msg.reply(spam_text) for _ in range(count - 1)]
+        await asyncio.gather(*reply_tasks, return_exceptions=True)
 
-        error_info = f"\nエラー例: {first_error}" if first_error and success_count == 0 else ""
-        await interaction.followup.send(f"✅ このチャンネルに{success_count}回送信しました{error_info}", ephemeral=True)
+    except Exception as e:
+        print(f"spamコマンドエラー: {e}")
+
+# =============================================
+# /qop コマンド（投票爆撃）
+# =============================================
+@bot.tree.command(name="qop", description="このサーバーはうんこですか？投票を連投")
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
+async def slash_qop(
+    interaction: discord.Interaction,
+    count: int = 50
+):
+    await interaction.response.defer(ephemeral=True)
+    await interaction.delete_original_response()
+
+    try:
+        channel = interaction.channel
+        if channel is None:
+            channel_id = interaction.channel_id
+            if channel_id is None:
+                return
+            channel = await bot.fetch_channel(channel_id)
+
+        async def send_poll():
+            poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
+            for _ in range(15):
+                poll.add_answer(text="はい")
+            await channel.send(poll=poll)
+
+        poll_tasks = [send_poll() for _ in range(count)]
+        await asyncio.gather(*poll_tasks, return_exceptions=True)
+
+    except Exception as e:
+        print(f"qopコマンドエラー: {e}")
 
     except Exception as e:
         await interaction.followup.send(f"❌ エラー: {str(e)}", ephemeral=True)
